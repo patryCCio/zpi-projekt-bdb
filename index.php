@@ -4,12 +4,23 @@ require 'db.php';
 
 $is_logged_in = isset($_SESSION['user_id']);
 $username = '';
+$accountBalance = 0;
+$transfers = [];
 
 if ($is_logged_in) {
     $stmt = $pdo->prepare('SELECT username FROM users WHERE id = ?');
     $stmt->execute([$_SESSION['user_id']]);
     $user = $stmt->fetch();
     $username = $user['username'];
+
+    $stmt = $pdo->prepare('SELECT funts FROM finances WHERE user_id = ?');
+    $stmt->execute([$_SESSION['user_id']]);
+    $finance = $stmt->fetch();
+    $accountBalance = $finance['funts'];
+
+	$stmt = $pdo->prepare('SELECT amount FROM transfers WHERE user_id = ?');
+    $stmt->execute([$_SESSION['user_id']]);
+    $transfers = $stmt->fetchAll();
 }
 ?>
 
@@ -35,6 +46,9 @@ if ($is_logged_in) {
                     </li>
                     <?php if ($is_logged_in): ?>
                         <li class="nav-item">
+                            <a class="nav-link" href="transfer.php">Dodaj transakcję</a>
+                        </li>
+                        <li class="nav-item">
                             <a class="nav-link" href="logout.php">Wyloguj</a>
                         </li>
                     <?php else: ?>
@@ -44,6 +58,7 @@ if ($is_logged_in) {
                         <li class="nav-item">
                         <a class="nav-link" href="add_user.php">Dodaj użytkownika</a>
                     </li>
+                        
                     <?php endif; ?>  
                 </ul>
                     <p>
@@ -58,34 +73,29 @@ if ($is_logged_in) {
             Witamy w twoim eWallet!
         </div>
 
-        <?php
-        $accountBallance = 1000;
-        echo '<div class="alert alert-primary">Początkowe saldo konta: '.$accountBallance.' PLN</div>';
-        
-        $transfersarray = array(1 => 100, 300, -1100, -1000);
-        $transferBallance = 0;
-
-        echo '<ul class="list-group">';
-        foreach ($transfersarray as $transfer) {
-            if ($transfer > 0) {
-                echo '<li class="list-group-item d-flex justify-content-between align-items-center">Przychodzący przelew: '.$transfer.' PLN <span class="badge badge-success">IN</span></li>';
-            } else {
-                echo '<li class="list-group-item d-flex justify-content-between align-items-center">Wychodzący przelew: '.$transfer.' PLN <span class="badge badge-danger">OUT</span></li>';
-            }
-            $accountBallance += $transfer;
-            $transferBallance += $transfer;
-        }
-        echo '</ul>';
-
-        echo '<div class="alert alert-primary">Końcowe saldo konta: '.$accountBallance.' PLN</div>';
-
-        if ($accountBallance < 0) {
-            echo '<div class="alert alert-warning">Jesteś na debecie!</div>';
-        }
-        if ($transferBallance < 0) {
-            echo '<div class="alert alert-danger">Masz niewystarczającą ilość środków!</div>';
-        }
-        ?>
+        <?php if ($is_logged_in): ?>
+            <div class="alert alert-primary" role="alert">
+                Stan konta: <?php echo htmlspecialchars($accountBalance); ?> PLN
+            </div>
+        <?php endif; ?>
+            
+             <?php if ($is_logged_in): ?>
+            <ul class="list-group">
+                <?php foreach ($transfers as $transfer): ?>
+                    <?php if ($transfer['amount'] > 0): ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Przychodzący przelew: <?php echo $transfer['amount']; ?> PLN 
+                            <span class="badge badge-success">IN</span>
+                        </li>
+                    <?php else: ?>
+                        <li class="list-group-item d-flex justify-content-between align-items-center">
+                            Wychodzący przelew: <?php echo $transfer['amount']; ?> PLN 
+                            <span class="badge badge-danger">OUT</span>
+                        </li>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </ul>
+        <?php endif; ?>
     </div>
     <script src="js/bootstrap.min.js"></script>
 </body>
