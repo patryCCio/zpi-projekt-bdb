@@ -1,3 +1,37 @@
+<?php
+session_start();
+require 'db.php';
+
+if ($_SERVER['REQUEST_METHOD'] == 'POST') {
+    $username = $_POST['username'];
+    $password = $_POST['password'];
+    $funds = $_POST['funds'];
+    $passwordHash = password_hash($password, PASSWORD_DEFAULT);
+
+    try {
+        // Start transaction
+        $pdo->beginTransaction();
+
+        // Insert user into users table
+        $stmt = $pdo->prepare('INSERT INTO users (username, password) VALUES (?, ?)');
+        $stmt->execute([$username, $passwordHash]);
+        $user_id = $pdo->lastInsertId();
+
+        // Insert initial funds into finances table
+        $stmt = $pdo->prepare('INSERT INTO finances (user_id, funts) VALUES (?, ?)');
+        $stmt->execute([$user_id, $funds]);
+
+        // Commit transaction
+        $pdo->commit();
+
+        $success_message = 'Dodano użytkownika!';
+    } catch (Exception $e) {
+        // Rollback transaction in case of error
+        $pdo->rollBack();
+        $error_message = 'Wystąpił błąd: ' . $e->getMessage();
+    }
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -38,22 +72,18 @@
                                 <label for="password">Hasło</label>
                                 <input type="password" class="form-control" id="password" name="password" required>
                             </div>
+                            <div class="form-group">
+                                <label for="funds">Początkowe fundusze</label>
+                                <input type="number" step="0.01" class="form-control" id="funds" name="funds" required>
+                            </div>
                             <button type="submit" class="btn btn-primary">Dodaj</button>
                         </form>
                         <?php
-                        require 'db.php';
-
-                        if ($_SERVER['REQUEST_METHOD'] == 'POST') {
-                            $username = $_POST['username'];
-                            $password = $_POST['password'];
-                            $passwordHash = password_hash($password, PASSWORD_DEFAULT);
-
-                            $stmt = $pdo->prepare('INSERT INTO users (username, password) VALUES (?, ?)');
-                            if ($stmt->execute([$username, $passwordHash])) {
-                                echo '<div class="alert alert-success mt-3">Użytkownik dodany!</div>';
-                            } else {
-                                echo '<div class="alert alert-danger mt-3">Nastąpił błąd, spróbuj ponownie później!</div>';
-                            }
+                        if (!empty($success_message)) {
+                            echo '<div class="alert alert-success mt-3">' . $success_message . '</div>';
+                        }
+                        if (!empty($error_message)) {
+                            echo '<div class="alert alert-danger mt-3">' . $error_message . '</div>';
                         }
                         ?>
                     </div>
